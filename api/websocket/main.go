@@ -20,8 +20,8 @@ type settings struct {
 //Settings
 var Settings = settings{messageReceived}
 
-func messageReceived(p []byte) {
-
+func (m MessageReceived) messageReceived(p []byte) {
+	fmt.Println(p)
 }
 
 //MessageReciver
@@ -33,7 +33,7 @@ func (s *settings) MessageReceiver(c *websocket.Conn) {
 			fmt.Println("read:", err)
 			break
 		}
-		s.MessageReceived(message)
+		s.messageReceived(message)
 		err = c.WriteMessage(mt, message)
 		if err != nil {
 			log.Println("write:", err)
@@ -57,7 +57,6 @@ func init() {
 	r.HandleFunc("/", wsUpgrader)
 	http.Handle("/", r)
 	fmt.Println("[WebsocketAPI] Websocket API is initialized.")
-	re := rect{width: 10, height: 5}
 }
 
 func wsUpgrader(w http.ResponseWriter, r *http.Request) {
