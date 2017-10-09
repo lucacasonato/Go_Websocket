@@ -7,25 +7,19 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
+	"flag"
 )
 
-type MessageReceived interface {
-	MessageReceived(p []byte)
+type defaultSettings struct{
+	MessageReceived func(p []byte)
+	MessageReceiver func(c *websocket.Conn,ms defaultSettings)
 }
 
-type settings struct {
-	MessageReceived
+func defaultMessageReceived(p []byte) {
+	fmt.Println(string(p)+"what")
 }
 
-//Settings
-var Settings = settings{messageReceived}
-
-func (m MessageReceived) messageReceived(p []byte) {
-	fmt.Println(p)
-}
-
-//MessageReciver
-func (s *settings) MessageReceiver(c *websocket.Conn) {
+func defaultMessageReceiver(c *websocket.Conn,ms defaultSettings) {
 	for {
 		mt, message, err := c.ReadMessage()
 
@@ -33,7 +27,8 @@ func (s *settings) MessageReceiver(c *websocket.Conn) {
 			fmt.Println("read:", err)
 			break
 		}
-		s.messageReceived(message)
+		ms.MessageReceived(message)
+		
 		err = c.WriteMessage(mt, message)
 		if err != nil {
 			log.Println("write:", err)
@@ -42,21 +37,13 @@ func (s *settings) MessageReceiver(c *websocket.Conn) {
 	}
 }
 
-type rect struct {
-	width, height int
-}
-
-func (r *rect) area() int {
-	return r.width * r.height
-}
-
-var upgrader = websocket.Upgrader{} // use default options
-
-func init() {
-	r := mux.NewRouter()
-	r.HandleFunc("/", wsUpgrader)
-	http.Handle("/", r)
-	fmt.Println("[WebsocketAPI] Websocket API is initialized.")
+var Settings = defaultSettings{defaultMessageReceived,defaultMessageReceiver}
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 func wsUpgrader(w http.ResponseWriter, r *http.Request) {
@@ -66,15 +53,27 @@ func wsUpgrader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.Close()
-	Settings.MessageReceiver(c)
+	Settings.MessageReceiver(c, Settings)
 }
 
-//HelloWorld is a test function!
-func HelloWorld(hello string) {
-	fmt.Println(hello)
+var addr = flag.String("addr", "localhost:8080", "http service address")
+
+func Start(){
+	r := mux.NewRouter()
+	r.HandleFunc("/", wsUpgrader)
+	http.Handle("/", r)
+	fmt.Println("[WebsocketAPI] Websocket API is initialized.")
+	http.ListenAndServe(*addr, nil)
 }
 
-//ParseMessage
-func ParseMessage() {
-
+func SetMessageHandler(s func(p []byte)){
+	Settings = defaultSettings{s,defaultMessageReceiver}
 }
+func SetReceiverHandler(s func(c *websocket.Conn,ms defaultSettings)){
+	Settings = defaultSettings{defaultMessageReceived,s}
+}
+
+
+
+
+
