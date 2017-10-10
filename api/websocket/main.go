@@ -1,11 +1,10 @@
-package websocket
+package websocketAPI
 
 //this is a package for easely setting up a gorilla websocket without needing all the functions yourself. made for quick projects that dont need 100% configuration but still need a simple and configurable websocket
 import (
 	"fmt"
 	"log"
 	"net/http"
-
 	"flag"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -13,12 +12,12 @@ import (
 
 //defaultSettings is a type to store all the settings
 type settingsBase struct {
-	MessageReceived func(p []byte)                           //handler for received messages can be customized
+	MessageReceived func(c *websocket.Conn, p []byte)                           //handler for received messages can be customized
 	MessageReceiver func(c *websocket.Conn, ms settingsBase) //handler for receiving messages can be customized, custom function does not need to use MessageReceived
 }
 
 //defaultMessageReceived is the default handler for messages, it just prints them out.
-func defaultMessageReceived(p []byte) {
+func defaultMessageReceived(c *websocket.Conn, p []byte) {
 	fmt.Println(string(p))
 }
 
@@ -31,7 +30,7 @@ func defaultMessageReceiver(c *websocket.Conn, ms settingsBase) {
 			fmt.Println("read:", err)
 			break
 		}
-		ms.MessageReceived(message)
+		ms.MessageReceived(c,message)
 
 		err = c.WriteMessage(mt, message)
 		if err != nil {
@@ -78,7 +77,7 @@ func Start() {
 
 //SetMessageHandler sets the message handler to a custom function that can handle the message.
 //this resets the receiver to make sure that the message is handles correctly
-func SetMessageHandler(s func(p []byte)) {
+func SetMessageHandler(s func(c *websocket.Conn,p []byte)) {
 	settings = settingsBase{s, defaultMessageReceiver}
 }
 
