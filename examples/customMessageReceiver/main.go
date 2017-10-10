@@ -1,12 +1,12 @@
-package main
+package customMessageReceiver
 
 import (
-	"github.com/CreativeGuy2013/Go_Websocket/api/websocket"
 	"fmt"
+	"github.com/CreativeGuy2013/Go_Websocket/api/websocket"
 )
 
 func messageReceived(p []byte) {
-	fmt.Println(string(p)+"whut")
+	fmt.Println(string(p) + "whut")
 }
 
 func main() {
