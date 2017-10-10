@@ -10,16 +10,20 @@ import (
 	"flag"
 )
 
-type defaultSettings struct{
-	MessageReceived func(p []byte)
-	MessageReceiver func(c *websocket.Conn,ms defaultSettings)
+
+//defaultSettings is a type to store all the settings
+type settingsBase struct{
+	MessageReceived func(p []byte) 							//handler for received messages can be customized
+	MessageReceiver func(c *websocket.Conn,ms settingsBase)	//handler for receiving messages can be customized, custom function does not need to use MessageReceived
 }
 
+//defaultMessageReceived is the default handler for messages, it just prints them out.
 func defaultMessageReceived(p []byte) {
-	fmt.Println(string(p)+"what")
+	fmt.Println(string(p))
 }
 
-func defaultMessageReceiver(c *websocket.Conn,ms defaultSettings) {
+//defaultMessageReceiver waits for the messages to come and sends them off to settings.MessageReceived
+func defaultMessageReceiver(c *websocket.Conn,ms settingsBase) {
 	for {
 		mt, message, err := c.ReadMessage()
 
@@ -36,8 +40,9 @@ func defaultMessageReceiver(c *websocket.Conn,ms defaultSettings) {
 		}
 	}
 }
+//settings stores the ccurrent srttings
+var settings = settingsBase{defaultMessageReceived,defaultMessageReceiver}
 
-var Settings = defaultSettings{defaultMessageReceived,defaultMessageReceiver}
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -53,11 +58,15 @@ func wsUpgrader(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.Close()
-	Settings.MessageReceiver(c, Settings)
+	settings.MessageReceiver(c, settings)
 }
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
 
+
+//TODO: set custom port
+//TODO: set custom routes
+//Start starts the websocket, all trafic goes through port 8080,
 func Start(){
 	r := mux.NewRouter()
 	r.HandleFunc("/", wsUpgrader)
@@ -65,15 +74,13 @@ func Start(){
 	fmt.Println("[WebsocketAPI] Websocket API is initialized.")
 	http.ListenAndServe(*addr, nil)
 }
-
+//SetMessageHandler sets the message handler to a custom function that can handle the message.
+//this resets the receiver to make sure that the message is handles correctly
 func SetMessageHandler(s func(p []byte)){
-	Settings = defaultSettings{s,defaultMessageReceiver}
-}
-func SetReceiverHandler(s func(c *websocket.Conn,ms defaultSettings)){
-	Settings = defaultSettings{defaultMessageReceived,s}
+	settings = settingsBase{s,defaultMessageReceiver}
 }
 
-
-
-
-
+//SetReceiverHandler sets the message receiver to a custom function that can handle the connection
+func SetReceiverHandler(s func(c *websocket.Conn,ms settingsBase)){
+	settings = settingsBase{settings.MessageReceived,s}
+}
